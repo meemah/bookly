@@ -1,6 +1,6 @@
 from fastapi.security import HTTPBearer
 from fastapi import HTTPException,status, Request, Depends
-from .util import decode_access_token
+from .utils import decode_access_token
 from src.db.redis import jti_in_blocklist
 from src.db.main import get_session
 from sqlmodel.ext.asyncio.session import AsyncSession

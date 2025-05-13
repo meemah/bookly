@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException,status
 from sqlmodel.ext.asyncio.session import AsyncSession
-from .schema import UserCreateModel, UserLoginModel
+from .schemas import UserCreateModel, UserLoginModel
 from ..db.main import get_session
 from .service import UserService
 from datetime import timedelta
-from .util import create_access_token,verify_password
+from .utils import create_access_token,verify_password
 from fastapi.responses  import JSONResponse
 from src.db.redis import add_jti_to_blocklist
 from .dependencies import AccessTokenBearer, get_current_user, RefreshTokenBearer
@@ -64,7 +64,7 @@ async def login_user(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Invalid email or password"
     )
-@auth_router.get("logout")
+@auth_router.get("/logout")
 async def revoke_token(
     token_details: dict= Depends(AccessTokenBearer()),
         session: AsyncSession = Depends(get_session) 

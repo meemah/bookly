@@ -1,8 +1,8 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select,desc
-from .schema import UserCreateModel
+from .schemas import UserCreateModel
 from ..db.models import User
-from .util import generate_passwd_hash
+from .utils import generate_passwd_hash
 class UserService:
     async def create_user(self,user_model: UserCreateModel, session: AsyncSession ):
         new_user = User(
