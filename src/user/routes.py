@@ -9,8 +9,13 @@ from fastapi.responses  import JSONResponse
 from src.db.redis import add_jti_to_blocklist
 from .dependencies import AccessTokenBearer, get_current_user, RefreshTokenBearer
 from datetime import datetime
+from ..response.error import UserAlreadyExists, InvalidCredentials, InvalidToken
+from ..response.success import SuccessResponse
+
 auth_router = APIRouter()
 user_service = UserService()
+
+
 @auth_router.post("/signup",status_code=status.HTTP_201_CREATED)
 async def create_user_account(
     user_model:  UserCreateModel, 
@@ -19,10 +24,14 @@ async def create_user_account(
 ):
     does_user_exist = await user_service.does_user_exist(user_model.email, session)
     if does_user_exist:
-        raise HTTPException(status.HTTP_403_FORBIDDEN,detail="User Account exist")
+        raise UserAlreadyExists()
     else:
         user = await user_service.create_user(user_model,session)
-        return user
+        return SuccessResponse(
+            message= "Account created successfully",
+            data=user
+        )
+    x
      
 
 @auth_router.post("/login")
@@ -36,8 +45,8 @@ async def login_user(
     user = await user_service.get_user_by_email(email,session)
     if user is not None:
         password_valid =  verify_password(password,user.password_hash)
-        
-        if password_valid is not None:
+
+        if password_valid:
             access_token = create_access_token(
                 user_data={
                     'email': user.email,
@@ -54,43 +63,47 @@ async def login_user(
                 refresh=True,
                 expiry=timedelta(2)
             )
-            return JSONResponse(content={
-                "message":"Login Successful",
+            return 
+        SuccessResponse(
+            message="Login Successful",
+            date={
                 "access_token":access_token,
                 "refresh_token":refresh_token,
-                # "user":user.model_dump()
-            })
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Invalid email or password"
-    )
+            }
+        )
+
+    raise InvalidCredentials()
 @auth_router.get("/logout")
 async def revoke_token(
     token_details: dict= Depends(AccessTokenBearer()),
-        session: AsyncSession = Depends(get_session) 
+
 ):
     jti = token_details["jti"]
     await add_jti_to_blocklist(jti)
-    return JSONResponse(
-        content={
-            "message":"Logout successful"
-        }
+    return SuccessResponse(
+            message="Logout successful"
     )
 
 @auth_router.get("/me")
 async def get_current_user(user= Depends(get_current_user)):
-    return user
+    return SuccessResponse(
+        message="User Details fetched",
+        data=user
+    )
+
 
 
 @auth_router.get("/refresh_token")
 async def refresh_token(
-    session: AsyncSession = Depends(get_session),
     token_details: dict = Depends(RefreshTokenBearer())
 ):
     expiry_timestamp = token_details['exp']
     if datetime.fromtimestamp(expiry_timestamp) > datetime.now():
         new_access_token = create_access_token(user_data=token_details["user"])
-        return JSONResponse(content={
-            "access_token": new_access_token,
-        })
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+        return SuccessResponse(
+            message="New Access Token Generated",
+            data={
+                "access_token": new_access_token,
+            }
+        )
+    raise InvalidToken()

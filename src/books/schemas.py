@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 from datetime import datetime,date
-from typing import Optional
+from typing import Optional,List
 import uuid
+from ..reviews.schema import ReviewModel
 class Book(BaseModel):
     uid:uuid.UUID
     title: str
@@ -13,7 +14,8 @@ class Book(BaseModel):
     created_at:datetime
     updated_at:datetime
         
-    
+class BookDetailModel(Book):
+    reviews: List[ReviewModel]
 class BookUpdateModel(BaseModel):
     title:Optional[str]=None
     author:Optional[str]= None

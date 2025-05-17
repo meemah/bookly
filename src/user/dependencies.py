@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from .service  import UserService
 from typing import List
 from ..db.models import User
+from ..response.error import InvalidToken, RevokedToken, AccessTokenRequired, RefreshTokenRequired,InsufficientPermission
 user_service = UserService()
 class TokenBearer(HTTPBearer):
     def __init__(self,auto_error = True):
@@ -17,9 +18,9 @@ class TokenBearer(HTTPBearer):
         token = creds.credentials
         token_data = decode_access_token(token)
         if not self.token_valid(token):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+            raise InvalidToken()
         if await jti_in_blocklist(token_data['jti']):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Please get a new token")
+            raise RevokedToken()
         self.verify_token_data(token_data)
         
         return token_data
@@ -36,12 +37,12 @@ class TokenBearer(HTTPBearer):
 class AccessTokenBearer(TokenBearer):
     def verify_token_data(self, token_data: dict)-> None:
         if  token_data and token_data["refresh"]:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Enter access token")
+            raise AccessTokenRequired()
 
 class RefreshTokenBearer(TokenBearer):
     def verify_token_data(self, token_data: dict)-> None:
         if token_data and not token_data["refresh"]:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Enter refresh token") 
+            raise RefreshTokenRequired()
         
 async def get_current_user(
     token_details: dict = Depends(AccessTokenBearer()),
@@ -60,7 +61,4 @@ class RoleChecker:
         if current_user.role in self.allowed_roles:
             return True
         else: 
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not allowed to perform this action"
-            )
+            raise InsufficientPermission()
